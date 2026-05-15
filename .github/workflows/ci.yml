@@ -41,8 +41,20 @@ jobs:
     uses: ./.github/workflows/macos.yml
     permissions:
       contents: read
+  tvos:
+    uses: ./.github/workflows/tvos.yml
+    permissions:
+      contents: read
+  watchos:
+    uses: ./.github/workflows/watchos.yml
+    permissions:
+      contents: read
   android:
     uses: ./.github/workflows/android.yml
+    permissions:
+      contents: read
+  android-native:
+    uses: ./.github/workflows/android-native.yml
     permissions:
       contents: read
   linux:

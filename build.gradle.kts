@@ -1,3 +1,6 @@
+import org.gradle.api.tasks.testing.AbstractTestTask
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XCFramework
 import org.jetbrains.kotlin.gradle.targets.js.yarn.YarnRootExtension
@@ -45,25 +48,42 @@ kotlin {
     val xcf = XCFramework("UnicodeSegmentation")
 
     macosArm64 {
-        binaries.framework {
-            baseName = "UnicodeSegmentation"
-            xcf.add(this)
-        }
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
-    linuxX64()
-    mingwX64()
     iosArm64 {
-        binaries.framework {
-            baseName = "UnicodeSegmentation"
-            xcf.add(this)
-        }
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
     iosSimulatorArm64 {
-        binaries.framework {
-            baseName = "UnicodeSegmentation"
-            xcf.add(this)
-        }
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
+    iosX64 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    tvosArm64 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    tvosSimulatorArm64 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    watchosArm32 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    watchosArm64 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    watchosDeviceArm64 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    watchosSimulatorArm64 {
+        binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
+    }
+    linuxX64()
+    linuxArm64()
+    mingwX64()
+    androidNativeArm32()
+    androidNativeArm64()
+    androidNativeX86()
+    androidNativeX64()
     js {
         browser()
         nodejs()
@@ -71,6 +91,10 @@ kotlin {
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
+        nodejs()
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmWasi {
         nodejs()
     }
 
@@ -105,12 +129,30 @@ kotlin {
     jvmToolchain(21)
 }
 
+tasks.withType<AbstractTestTask>().configureEach {
+    testLogging {
+        events(
+            TestLogEvent.STARTED,
+            TestLogEvent.PASSED,
+            TestLogEvent.SKIPPED,
+            TestLogEvent.FAILED,
+            TestLogEvent.STANDARD_OUT,
+            TestLogEvent.STANDARD_ERROR,
+        )
+        exceptionFormat = TestExceptionFormat.FULL
+        showCauses = true
+        showExceptions = true
+        showStackTraces = true
+        showStandardStreams = true
+    }
+}
+
 rootProject.extensions.configure<NodeJsEnvSpec>("kotlinNodeJsSpec") {
-    version.set("22.22.2")
+    version.set("24.15.0")
 }
 
 rootProject.extensions.configure<WasmNodeJsEnvSpec>("kotlinWasmNodeJsSpec") {
-    version.set("22.22.2")
+    version.set("24.15.0")
 }
 
 rootProject.extensions.configure<YarnRootEnvSpec>("kotlinYarnSpec") {
@@ -225,6 +267,12 @@ val codeqlSourceClasspath: Configuration by configurations.creating {
     isCanBeConsumed = false
 }
 
+val codeqlAndroidAar: Configuration by configurations.creating {
+    description = "Android AAR artifacts for CodeQL classpath extraction (classes.jar only)"
+    isCanBeResolved = true
+    isCanBeConsumed = false
+}
+
 dependencies {
     codeqlKotlinc("org.jetbrains.kotlin:kotlin-compiler-embeddable:2.3.21")
     codeqlSourceClasspath("org.jetbrains.kotlin:kotlin-stdlib:2.3.21")
@@ -247,15 +295,35 @@ val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
     mainClass.set("org.jetbrains.kotlin.cli.jvm.K2JVMCompiler")
 
     val outDir = layout.buildDirectory.dir("classes/kotlin/codeql-jvm")
+    val aarExtractDir = layout.buildDirectory.dir("codeql/android-aar")
     val sources = fileTree("src/commonMain/kotlin") { include("**/*.kt") }
     val sentinelDir = layout.buildDirectory.dir("generated/codeql-empty-source")
     inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.files(codeqlSourceClasspath).withNormalizer(ClasspathNormalizer::class.java)
+    inputs.files(codeqlAndroidAar).withNormalizer(ClasspathNormalizer::class.java)
     outputs.dir(outDir)
+    outputs.dir(aarExtractDir)
     outputs.dir(sentinelDir)
 
     doFirst {
         outDir.get().asFile.mkdirs()
+        val extractedJars = mutableListOf<File>()
+        for (aar in codeqlAndroidAar.resolve()) {
+            val extractTarget = aarExtractDir.get().asFile.resolve(aar.nameWithoutExtension)
+            extractTarget.mkdirs()
+            copy {
+                from(zipTree(aar))
+                include("classes.jar")
+                into(extractTarget)
+            }
+            val classesJar = extractTarget.resolve("classes.jar")
+            if (classesJar.exists()) {
+                extractedJars += classesJar
+            }
+        }
+        val fullClasspath =
+            (codeqlSourceClasspath.resolve() + extractedJars)
+                .joinToString(File.pathSeparator) { it.absolutePath }
         val sourceFiles = sources.files.toMutableList()
         if (sourceFiles.isEmpty()) {
             val sentinelFile = sentinelDir.get().asFile.resolve(
@@ -277,7 +345,7 @@ val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
         }
         args = listOf(
             "-d", outDir.get().asFile.absolutePath,
-            "-classpath", codeqlSourceClasspath.asPath,
+            "-classpath", fullClasspath,
             "-jvm-target", "21",
             "-no-stdlib",
             "-no-reflect",
@@ -293,12 +361,15 @@ val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
 tasks.register("test") {
     group = "verification"
     description =
-        "Runs a portable test suite (macOS + JS + WasmJS). Android and non-host native targets are intentionally excluded."
+        "Runs a portable test suite (macOS + JS + WasmJS + Android unit). " +
+        "Non-host native targets only run on their own host."
 
     val defaultTestTasks = listOf(
         "macosArm64Test",
         "jsNodeTest",
         "wasmJsNodeTest",
+        "compileAndroidMain",
+        "assembleUnitTest",
     )
 
     dependsOn(defaultTestTasks.mapNotNull { taskName -> tasks.findByName(taskName) })
