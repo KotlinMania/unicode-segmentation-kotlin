@@ -1,3 +1,5 @@
+import org.gradle.api.tasks.ClasspathNormalizer
+import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.testing.AbstractTestTask
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
@@ -38,6 +40,7 @@ kotlin {
     sourceSets.all {
         languageSettings.optIn("kotlin.time.ExperimentalTime")
         languageSettings.optIn("kotlin.concurrent.atomics.ExperimentalAtomicApi")
+        languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
     }
 
     compilerOptions {
@@ -59,12 +62,14 @@ kotlin {
     iosX64 {
         binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
+
     tvosArm64 {
         binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
     tvosSimulatorArm64 {
         binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
+
     watchosArm32 {
         binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
@@ -77,13 +82,16 @@ kotlin {
     watchosSimulatorArm64 {
         binaries.framework { baseName = "UnicodeSegmentation"; xcf.add(this) }
     }
+
     linuxX64()
     linuxArm64()
     mingwX64()
+
     androidNativeArm32()
     androidNativeArm64()
     androidNativeX86()
     androidNativeX64()
+
     js {
         browser()
         nodejs()
@@ -113,6 +121,8 @@ kotlin {
         }
     }
 
+    jvm()
+
     sourceSets {
         val commonMain by getting {
             dependencies {
@@ -123,8 +133,12 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-collections-immutable:0.4.0")
             }
         }
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
 
-        val commonTest by getting { dependencies { implementation(kotlin("test")) } }
     }
     jvmToolchain(21)
 }
@@ -166,6 +180,8 @@ rootProject.extensions.configure<WasmYarnRootEnvSpec>("kotlinWasmYarnSpec") {
 rootProject.extensions.configure<YarnRootExtension>("kotlinYarn") {
     resolution("diff", "8.0.3")
     resolution("**/diff", "8.0.3")
+    resolution("fast-uri", "3.1.1")
+    resolution("**/fast-uri", "3.1.1")
     resolution("serialize-javascript", "7.0.5")
     resolution("**/serialize-javascript", "7.0.5")
     resolution("webpack", "5.106.2")
@@ -242,19 +258,8 @@ mavenPublishing {
 // ---------------------------------------------------------------------------
 // CodeQL Java/Kotlin extraction task
 //
-// `.github/workflows/codeql.yml` invokes `./gradlew codeqlCompileJvm` to feed
-// kotlinc-compiled commonMain through the CodeQL Java agent. The KMP build
-// engages the K2 phased pipeline that bypasses the agent's
-// `K2JVMCompiler.doExecute` hook, so this task runs a separate single-target
-// JVM compile of commonMain sources via JavaExec with NO multiplatform flags,
-// causing kotlinc to dispatch through the legacy path the agent hooks.
-//
-// When commonMain has no .kt files (pre-port repo with only .gitkeep), the
-// task writes a tiny placeholder under `build/generated/codeql-empty-source/`
-// so kotlinc always has at least one source. Skipping the task with onlyIf
-// is intentionally avoided: a silent skip is indistinguishable in CI from a
-// real run, which is abusable.
-
+// .github/workflows/codeql.yml invokes `./gradlew codeqlCompileJvm` to feed
+// kotlinc-compiled commonMain through the CodeQL Java agent.
 val codeqlKotlinc: Configuration by configurations.creating {
     description = "Kotlin compiler (CodeQL extraction target only — not published)"
     isCanBeResolved = true
@@ -285,10 +290,7 @@ dependencies {
 
 val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
     description =
-        "Compile commonMain Kotlin sources with kotlinc 2.3.21 for CodeQL Java/Kotlin extraction. " +
-        "Not part of any published artifact; intended to be wrapped by `codeql database create` " +
-        "or `github/codeql-action/init` so the LD_PRELOAD tracer can attach the extractor agent " +
-        "to the in-process kotlinc."
+        "Compile commonMain Kotlin sources with kotlinc 2.3.21 for CodeQL Java/Kotlin extraction."
     group = "verification"
 
     classpath(codeqlKotlinc)
@@ -296,7 +298,9 @@ val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
 
     val outDir = layout.buildDirectory.dir("classes/kotlin/codeql-jvm")
     val aarExtractDir = layout.buildDirectory.dir("codeql/android-aar")
-    val sources = fileTree("src/commonMain/kotlin") { include("**/*.kt") }
+    val commonSources = fileTree("src/commonMain/kotlin") { include("**/*.kt") }
+    val platformSources = fileTree("src/androidMain/kotlin") { include("**/*.kt") }
+    val sources = files(commonSources, platformSources)
     val sentinelDir = layout.buildDirectory.dir("generated/codeql-empty-source")
     inputs.files(sources).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.files(codeqlSourceClasspath).withNormalizer(ClasspathNormalizer::class.java)
@@ -324,23 +328,22 @@ val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
         val fullClasspath =
             (codeqlSourceClasspath.resolve() + extractedJars)
                 .joinToString(File.pathSeparator) { it.absolutePath }
+        val commonSourceFiles = commonSources.files.toMutableList()
         val sourceFiles = sources.files.toMutableList()
         if (sourceFiles.isEmpty()) {
-            val sentinelFile = sentinelDir.get().asFile.resolve(
-                "io/github/kotlinmania/codeql/_CodeqlEmptySource.kt",
-            )
+            val sentinelFile = sentinelDir.get().asFile.resolve("io/github/kotlinmania/codeql/_CodeqlEmptySource.kt")
             sentinelFile.parentFile.mkdirs()
             sentinelFile.writeText(
                 """
                 // Auto-generated. Present so codeqlCompileJvm has at least
                 // one Kotlin source to feed kotlinc; replaced by real
                 // commonMain content once porting begins.
-                package io.github.kotlinmania.codeql
+                package io.github.kotlinmania.unicodesegmentation.codeql
 
                 private object _CodeqlEmptySource
-
                 """.trimIndent(),
             )
+            commonSourceFiles += sentinelFile
             sourceFiles += sentinelFile
         }
         args = listOf(
@@ -351,21 +354,42 @@ val codeqlCompileJvm = tasks.register<JavaExec>("codeqlCompileJvm") {
             "-no-reflect",
             "-language-version", "2.3",
             "-api-version", "2.3",
+            "-Xmulti-platform",
+            "-Xcommon-sources=${commonSourceFiles.joinToString(",") { it.absolutePath }}",
+            "-Xexpect-actual-classes",
             "-opt-in", "kotlin.time.ExperimentalTime",
             "-opt-in", "kotlin.concurrent.atomics.ExperimentalAtomicApi",
-            "-Xexpect-actual-classes",
         ) + sourceFiles.map { it.absolutePath }
     }
 }
 
+tasks.register<Exec>("setupAndroidSdk") {
+    group = "setup"
+    description = "Downloads and configures the project-local Android SDK."
+    commandLine("./setup-android-sdk.sh")
+}
+
+// Auto-install the project-local Android SDK before any Android compile
+// when it is not already present, so a fresh checkout builds without a
+// manual setup step.
+tasks.named("setupAndroidSdk").configure {
+    onlyIf {
+        androidSdkDir == null &&
+            !rootProject.file(".android-sdk/cmdline-tools/latest/bin/sdkmanager").exists()
+    }
+}
+tasks.matching { it.name.startsWith("compile") && it.name.contains("Android") }
+    .configureEach { dependsOn("setupAndroidSdk") }
+
 tasks.register("test") {
     group = "verification"
     description =
-        "Runs a portable test suite (macOS + JS + WasmJS + Android unit). " +
-        "Non-host native targets only run on their own host."
+        "Runs the host-portable test suite (macOS + JS + WasmJS + Android unit). " +
+        "Non-host native targets (mingwX64, linuxX64) only run on their own host."
 
     val defaultTestTasks = listOf(
         "macosArm64Test",
+        "jvmTest",
         "jsNodeTest",
         "wasmJsNodeTest",
         "compileAndroidMain",
@@ -373,4 +397,38 @@ tasks.register("test") {
     )
 
     dependsOn(defaultTestTasks.mapNotNull { taskName -> tasks.findByName(taskName) })
+}
+
+// The generated Wasm-WASI Node test runner cannot see the filesystem unless
+// the project directory is preopened. Patch the runner before wasmWasiNodeTest.
+val patchWasmWasiNodePreopens = tasks.register("patchWasmWasiNodePreopens") {
+    description = "Preopen the project directory for the generated Wasm-WASI Node test runner."
+    group = "verification"
+    dependsOn("compileTestDevelopmentExecutableKotlinWasmWasi")
+    outputs.upToDateWhen { false }
+
+    doLast {
+        val runnerFile = layout.buildDirectory.file(
+            "compileSync/wasmWasi/test/testDevelopmentExecutable/kotlin/${rootProject.name}-test.mjs",
+        ).get().asFile
+        if (!runnerFile.exists()) {
+            // No Wasm-WASI test runner was generated (the repo has no
+            // wasmWasi test sources), so there is nothing to preopen.
+            return@doLast
+        }
+        val text = runnerFile.readText()
+        val withCwdImport = text.replace(
+            "import { argv, env } from 'node:process';",
+            "import { argv, env, cwd } from 'node:process';",
+        )
+        val patched = withCwdImport.replace(
+            "const wasi = new WASI({ version: 'preview1', args: argv, env, });",
+            "const wasi = new WASI({ version: 'preview1', args: argv, env, preopens: { '/': cwd() }, });",
+        )
+        runnerFile.writeText(patched)
+    }
+}
+
+tasks.named("wasmWasiNodeTest") {
+    dependsOn(patchWasmWasiNodePreopens)
 }

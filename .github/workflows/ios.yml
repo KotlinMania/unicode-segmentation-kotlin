@@ -35,7 +35,7 @@ jobs:
             echo "::error::No XCFramework(\"<Name>\") declaration found in build.gradle.kts"
             exit 1
           fi
-          echo "XCFramework name: $XCF_NAME -> task: assemble${XCF_NAME}XCFramework"
+          echo "XCFramework name: $XCF_NAME → task: assemble${XCF_NAME}XCFramework"
           ./gradlew \
             compileKotlinIosArm64 \
             compileKotlinIosSimulatorArm64 \
@@ -44,6 +44,11 @@ jobs:
             "assemble${XCF_NAME}XCFramework" \
             --no-configuration-cache
 
+      # Native upload-artifact (GitHub-published) makes the test reports
+      # downloadable from the run summary page. `if: success() || failure()`
+      # ensures uploads even when tests fail. Combined with the per-test
+      # testLogging events in build.gradle.kts, the audit trail covers both
+      # raw-log streaming and post-run inspection.
       - name: Upload test reports (iOS)
         if: success() || failure()
         uses: actions/upload-artifact@v7
