@@ -25,9 +25,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6.1.0
 
-      # The four androidNative* targets cross-compile on any host. Tests
-      # require an Android runtime and are intentionally skipped in CI;
-      # compile coverage is the contract here.
+      # The four androidNative* targets cross-compile on any host (NDK
+      # is bundled with kotlin-native). Tests require an Android emulator
+      # with NDK runtime and are intentionally skipped in CI — compile
+      # coverage is the contract here.
       - name: Compile Android Native targets
         run: >
           ./gradlew
