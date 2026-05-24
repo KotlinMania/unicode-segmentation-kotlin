@@ -1,5 +1,4 @@
 {
-  "parity_mode": false,
   "name": "unicode-segmentation-kotlin",
   "source": {
     "path": "tmp/unicode-segmentation/src",
