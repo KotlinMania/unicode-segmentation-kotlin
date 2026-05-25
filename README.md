@@ -169,7 +169,7 @@ Yanked due to accidental breakage and MSRV mistag.
 
 ```kotlin
 dependencies {
-    implementation("io.github.kotlinmania:unicode-segmentation-kotlin:0.1.0")
+    implementation("io.github.kotlinmania:unicode-segmentation-kotlin:0.1.1")
 }
 ```
 
