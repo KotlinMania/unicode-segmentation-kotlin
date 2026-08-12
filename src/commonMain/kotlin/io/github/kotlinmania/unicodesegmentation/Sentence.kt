@@ -22,23 +22,25 @@ private data class SentenceBreaksState(
     val fourth: StatePart,
 ) {
     fun next(category: SentenceCat): SentenceBreaksState {
-        val nextPart = when {
-            fourth == StatePart.ClosePlus && category == SentenceCat.Close -> fourth
-            fourth == StatePart.SpPlus && category == SentenceCat.Sp -> fourth
-            else -> when (category) {
-                SentenceCat.Cr -> StatePart.CR
-                SentenceCat.Lf -> StatePart.LF
-                SentenceCat.Sep -> StatePart.Sep
-                SentenceCat.ATerm -> StatePart.ATerm
-                SentenceCat.Upper,
-                SentenceCat.Lower,
-                -> StatePart.UpperLower
-                SentenceCat.Close -> StatePart.ClosePlus
-                SentenceCat.Sp -> StatePart.SpPlus
-                SentenceCat.STerm -> StatePart.STerm
-                else -> StatePart.Other
+        val nextPart =
+            when {
+                fourth == StatePart.ClosePlus && category == SentenceCat.Close -> fourth
+                fourth == StatePart.SpPlus && category == SentenceCat.Sp -> fourth
+                else ->
+                    when (category) {
+                        SentenceCat.Cr -> StatePart.CR
+                        SentenceCat.Lf -> StatePart.LF
+                        SentenceCat.Sep -> StatePart.Sep
+                        SentenceCat.ATerm -> StatePart.ATerm
+                        SentenceCat.Upper,
+                        SentenceCat.Lower,
+                        -> StatePart.UpperLower
+                        SentenceCat.Close -> StatePart.ClosePlus
+                        SentenceCat.Sp -> StatePart.SpPlus
+                        SentenceCat.STerm -> StatePart.STerm
+                        else -> StatePart.Other
+                    }
             }
-        }
         return if (nextPart == fourth &&
             (fourth == StatePart.ClosePlus || fourth == StatePart.SpPlus)
         ) {
@@ -65,12 +67,13 @@ private data class SentenceBreaksState(
         }
 }
 
-private val INITIAL_STATE = SentenceBreaksState(
-    StatePart.Sot,
-    StatePart.Sot,
-    StatePart.Sot,
-    StatePart.Sot,
-)
+private val INITIAL_STATE =
+    SentenceBreaksState(
+        StatePart.Sot,
+        StatePart.Sot,
+        StatePart.Sot,
+        StatePart.Sot,
+    )
 
 /** An iterator over substrings containing alphanumeric characters after sentence splitting. */
 class UnicodeSentences internal constructor(
@@ -144,20 +147,26 @@ private fun sentenceBreaks(source: String): List<Int> {
             nextCategory == SentenceCat.Upper &&
                 stateBefore.match2(StatePart.UpperLower, StatePart.ATerm) -> Unit
             matchSb8(stateBefore, spans, index) -> Unit
-            (nextCategory == SentenceCat.SContinue ||
-                nextCategory == SentenceCat.STerm ||
-                nextCategory == SentenceCat.ATerm) &&
+            (
+                nextCategory == SentenceCat.SContinue ||
+                    nextCategory == SentenceCat.STerm ||
+                    nextCategory == SentenceCat.ATerm
+            ) &&
                 matchSb8a(stateBefore) -> Unit
-            (nextCategory == SentenceCat.Close ||
-                nextCategory == SentenceCat.Sp ||
-                nextCategory == SentenceCat.Sep ||
-                nextCategory == SentenceCat.Cr ||
-                nextCategory == SentenceCat.Lf) &&
+            (
+                nextCategory == SentenceCat.Close ||
+                    nextCategory == SentenceCat.Sp ||
+                    nextCategory == SentenceCat.Sep ||
+                    nextCategory == SentenceCat.Cr ||
+                    nextCategory == SentenceCat.Lf
+            ) &&
                 matchSb9(stateBefore) -> Unit
-            (nextCategory == SentenceCat.Sp ||
-                nextCategory == SentenceCat.Sep ||
-                nextCategory == SentenceCat.Cr ||
-                nextCategory == SentenceCat.Lf) &&
+            (
+                nextCategory == SentenceCat.Sp ||
+                    nextCategory == SentenceCat.Sep ||
+                    nextCategory == SentenceCat.Cr ||
+                    nextCategory == SentenceCat.Lf
+            ) &&
                 matchSb8a(stateBefore) -> Unit
             matchSb11(stateBefore) -> breaks.add(positionBefore)
         }
@@ -213,13 +222,14 @@ private fun matchSb9(state: SentenceBreaksState): Boolean {
 }
 
 private fun matchSb11(state: SentenceBreaksState): Boolean {
-    var index = when (state.partAt(3)) {
-        StatePart.Sep,
-        StatePart.CR,
-        StatePart.LF,
-        -> 2
-        else -> 3
-    }
+    var index =
+        when (state.partAt(3)) {
+            StatePart.Sep,
+            StatePart.CR,
+            StatePart.LF,
+            -> 2
+            else -> 3
+        }
     if (state.partAt(index) == StatePart.SpPlus) {
         index -= 1
     }

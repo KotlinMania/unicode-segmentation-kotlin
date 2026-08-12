@@ -88,11 +88,12 @@ class GraphemeCursor(
         if (chunkStart != 0 || chunkStart + chunk.length != len) {
             return Result.failure(GraphemeIncomplete.PreContext(chunkStart))
         }
-        state = if (offset in graphemeBoundaries(chunk, isExtended)) {
-            GraphemeState.Break
-        } else {
-            GraphemeState.NotBreak
-        }
+        state =
+            if (offset in graphemeBoundaries(chunk, isExtended)) {
+                GraphemeState.Break
+            } else {
+                GraphemeState.NotBreak
+            }
         return Result.success(state == GraphemeState.Break)
     }
 
@@ -128,9 +129,13 @@ class GraphemeCursor(
 }
 
 /** An error return indicating that not enough content was available in the provided chunk. */
-sealed class GraphemeIncomplete(message: String) : RuntimeException(message) {
+sealed class GraphemeIncomplete(
+    message: String,
+) : RuntimeException(message) {
     /** More pre-context is needed. */
-    data class PreContext(val offset: Int) : GraphemeIncomplete("more pre-context is needed")
+    data class PreContext(
+        val offset: Int,
+    ) : GraphemeIncomplete("more pre-context is needed")
 
     /** The cursor is moving past the beginning of the current chunk. */
     data object PrevChunk : GraphemeIncomplete("previous chunk is needed")
@@ -153,8 +158,10 @@ private fun graphemeRanges(string: String, isExtended: Boolean): List<Pair<Int, 
 }
 
 private fun graphemeBoundaries(string: String, isExtended: Boolean): List<Int> {
-    val codePoints = string.codePointSpans()
-        .map { span -> GraphemeCodePoint(span, graphemeCategory(span.codePoint).category) }
+    val codePoints =
+        string
+            .codePointSpans()
+            .map { span -> GraphemeCodePoint(span, graphemeCategory(span.codePoint).category) }
     if (codePoints.isEmpty()) return listOf(0)
     val boundaries = mutableListOf(0)
     for (index in 1 until codePoints.size) {
@@ -182,10 +189,12 @@ private fun isGraphemeBoundary(
             after == GraphemeCat.Cr ||
             after == GraphemeCat.Lf -> true
         before == GraphemeCat.L &&
-            (after == GraphemeCat.L ||
-                after == GraphemeCat.V ||
-                after == GraphemeCat.Lv ||
-                after == GraphemeCat.LvT) -> false
+            (
+                after == GraphemeCat.L ||
+                    after == GraphemeCat.V ||
+                    after == GraphemeCat.Lv ||
+                    after == GraphemeCat.LvT
+            ) -> false
         (before == GraphemeCat.Lv || before == GraphemeCat.V) &&
             (after == GraphemeCat.V || after == GraphemeCat.T) -> false
         (before == GraphemeCat.LvT || before == GraphemeCat.T) &&
@@ -215,8 +224,9 @@ private fun hasIncbConsonantContext(
         when {
             isIncbLinker(codePoint) -> linkerCount += 1
             DerivedProperty.incbExtend(codePoint) -> Unit
-            else -> return linkerCount > 0 &&
-                codePoints[cursor].category == GraphemeCat.InCbConsonant
+            else ->
+                return linkerCount > 0 &&
+                    codePoints[cursor].category == GraphemeCat.InCbConsonant
         }
         cursor -= 1
     }

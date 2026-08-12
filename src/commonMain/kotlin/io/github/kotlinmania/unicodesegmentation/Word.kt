@@ -62,15 +62,29 @@ data class WordIndex(
 
 private sealed class UWordBoundsState {
     data object Start : UWordBoundsState()
+
     data object Letter : UWordBoundsState()
+
     data object HLetter : UWordBoundsState()
+
     data object Numeric : UWordBoundsState()
+
     data object Katakana : UWordBoundsState()
+
     data object ExtendNumLet : UWordBoundsState()
-    data class Regional(val state: RegionalState) : UWordBoundsState()
-    data class FormatExtend(val type: FormatExtendType) : UWordBoundsState()
+
+    data class Regional(
+        val state: RegionalState,
+    ) : UWordBoundsState()
+
+    data class FormatExtend(
+        val type: FormatExtendType,
+    ) : UWordBoundsState()
+
     data object Zwj : UWordBoundsState()
+
     data object Emoji : UWordBoundsState()
+
     data object WSegSpace : UWordBoundsState()
 }
 
@@ -101,8 +115,10 @@ private fun wordRanges(string: String): List<Pair<Int, Int>> =
     wordBoundaries(string).zipWithNext()
 
 private fun wordBoundaries(string: String): List<Int> {
-    val codePoints = string.codePointSpans()
-        .map { span -> WordCodePoint(span, wordCategory(span.codePoint).category) }
+    val codePoints =
+        string
+            .codePointSpans()
+            .map { span -> WordCodePoint(span, wordCategory(span.codePoint).category) }
     if (codePoints.isEmpty()) return listOf(0)
     val boundaries = mutableListOf(0)
     var index = 0
@@ -149,19 +165,20 @@ private fun nextWordBoundary(codePoints: List<WordCodePoint>, start: Int): Int {
             continue
         }
 
-        val nextState = nextWordState(
-            state = state,
-            category = category,
-            codePoints = codePoints,
-            index = index,
-            skippedFormatExtend = skippedFormatExtend,
-            save = { savedIndex, savedCategory ->
-                saveIndex = savedIndex
-                saveCategory = savedCategory
-            },
-            breakBeforeCurrent = { takeCurrent = false },
-            advanceIndex = { amount -> index += amount },
-        )
+        val nextState =
+            nextWordState(
+                state = state,
+                category = category,
+                codePoints = codePoints,
+                index = index,
+                skippedFormatExtend = skippedFormatExtend,
+                save = { savedIndex, savedCategory ->
+                    saveIndex = savedIndex
+                    saveCategory = savedCategory
+                },
+                breakBeforeCurrent = { takeCurrent = false },
+                advanceIndex = { amount -> index += amount },
+            )
 
         if (nextState == null) break
         state = nextState
@@ -198,40 +215,42 @@ private fun nextWordState(
 ): UWordBoundsState? {
     val nextCategory = codePoints.getOrNull(index + 1)?.category
     return when (state) {
-        UWordBoundsState.Start -> when (category) {
-            WordCat.Cr -> {
-                if (nextCategory == WordCat.Lf) advanceIndex(1)
-                null
+        UWordBoundsState.Start ->
+            when (category) {
+                WordCat.Cr -> {
+                    if (nextCategory == WordCat.Lf) advanceIndex(1)
+                    null
+                }
+                WordCat.ALetter -> UWordBoundsState.Letter
+                WordCat.HebrewLetter -> UWordBoundsState.HLetter
+                WordCat.Numeric -> UWordBoundsState.Numeric
+                WordCat.Katakana -> UWordBoundsState.Katakana
+                WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
+                WordCat.RegionalIndicator -> UWordBoundsState.Regional(RegionalState.Half)
+                WordCat.Lf,
+                WordCat.Newline,
+                -> null
+                WordCat.Zwj -> UWordBoundsState.Zwj
+                WordCat.WSegSpace -> UWordBoundsState.WSegSpace
+                else -> {
+                    if (nextCategory == WordCat.Format ||
+                        nextCategory == WordCat.Extend ||
+                        nextCategory == WordCat.Zwj
+                    ) {
+                        UWordBoundsState.FormatExtend(FormatExtendType.AcceptNone)
+                    } else {
+                        null
+                    }
+                }
             }
-            WordCat.ALetter -> UWordBoundsState.Letter
-            WordCat.HebrewLetter -> UWordBoundsState.HLetter
-            WordCat.Numeric -> UWordBoundsState.Numeric
-            WordCat.Katakana -> UWordBoundsState.Katakana
-            WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
-            WordCat.RegionalIndicator -> UWordBoundsState.Regional(RegionalState.Half)
-            WordCat.Lf,
-            WordCat.Newline,
-            -> null
-            WordCat.Zwj -> UWordBoundsState.Zwj
-            WordCat.WSegSpace -> UWordBoundsState.WSegSpace
-            else -> {
-                if (nextCategory == WordCat.Format ||
-                    nextCategory == WordCat.Extend ||
-                    nextCategory == WordCat.Zwj
-                ) {
-                    UWordBoundsState.FormatExtend(FormatExtendType.AcceptNone)
-                } else {
+        UWordBoundsState.WSegSpace ->
+            when {
+                category == WordCat.WSegSpace && !skippedFormatExtend -> UWordBoundsState.WSegSpace
+                else -> {
+                    breakBeforeCurrent()
                     null
                 }
             }
-        }
-        UWordBoundsState.WSegSpace -> when {
-            category == WordCat.WSegSpace && !skippedFormatExtend -> UWordBoundsState.WSegSpace
-            else -> {
-                breakBeforeCurrent()
-                null
-            }
-        }
         UWordBoundsState.Zwj -> {
             breakBeforeCurrent()
             null
@@ -240,35 +259,38 @@ private fun nextWordState(
         UWordBoundsState.HLetter,
         -> letterState(state, category, index, save, breakBeforeCurrent)
         UWordBoundsState.Numeric -> numericState(category, index, save, breakBeforeCurrent)
-        UWordBoundsState.Katakana -> when (category) {
-            WordCat.Katakana -> UWordBoundsState.Katakana
-            WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
-            else -> {
-                breakBeforeCurrent()
-                null
+        UWordBoundsState.Katakana ->
+            when (category) {
+                WordCat.Katakana -> UWordBoundsState.Katakana
+                WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
+                else -> {
+                    breakBeforeCurrent()
+                    null
+                }
             }
-        }
-        UWordBoundsState.ExtendNumLet -> when (category) {
-            WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
-            WordCat.ALetter -> UWordBoundsState.Letter
-            WordCat.HebrewLetter -> UWordBoundsState.HLetter
-            WordCat.Numeric -> UWordBoundsState.Numeric
-            WordCat.Katakana -> UWordBoundsState.Katakana
-            else -> {
-                breakBeforeCurrent()
-                null
+        UWordBoundsState.ExtendNumLet ->
+            when (category) {
+                WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
+                WordCat.ALetter -> UWordBoundsState.Letter
+                WordCat.HebrewLetter -> UWordBoundsState.HLetter
+                WordCat.Numeric -> UWordBoundsState.Numeric
+                WordCat.Katakana -> UWordBoundsState.Katakana
+                else -> {
+                    breakBeforeCurrent()
+                    null
+                }
             }
-        }
         is UWordBoundsState.Regional -> regionalState(state.state, category, breakBeforeCurrent)
         UWordBoundsState.Emoji -> {
             breakBeforeCurrent()
             null
         }
-        is UWordBoundsState.FormatExtend -> formatExtendState(
-            type = state.type,
-            category = category,
-            breakBeforeCurrent = breakBeforeCurrent,
-        )
+        is UWordBoundsState.FormatExtend ->
+            formatExtendState(
+                type = state.type,
+                category = category,
+                breakBeforeCurrent = breakBeforeCurrent,
+            )
     }
 }
 
@@ -337,13 +359,14 @@ private fun regionalState(
             breakBeforeCurrent()
             null
         }
-        RegionalState.Half -> when (category) {
-            WordCat.RegionalIndicator -> UWordBoundsState.Regional(RegionalState.Full)
-            else -> {
-                breakBeforeCurrent()
-                null
+        RegionalState.Half ->
+            when (category) {
+                WordCat.RegionalIndicator -> UWordBoundsState.Regional(RegionalState.Full)
+                else -> {
+                    breakBeforeCurrent()
+                    null
+                }
             }
-        }
         RegionalState.Unknown -> {
             breakBeforeCurrent()
             null

@@ -7,18 +7,20 @@ import kotlin.test.assertEquals
 class WordTest {
     @Test
     fun graphemesFollowTheReadmeExample() {
-        val graphemes = "a\u0310e\u0301o\u0308\u0332\r\n"
-            .graphemes(isExtended = true)
-            .toList()
+        val graphemes =
+            "a\u0310e\u0301o\u0308\u0332\r\n"
+                .graphemes(isExtended = true)
+                .toList()
 
         assertEquals(listOf("a\u0310", "e\u0301", "o\u0308\u0332", "\r\n"), graphemes)
     }
 
     @Test
     fun graphemeIndicesReturnOffsets() {
-        val indices = "a\u0310e\u0301o\u0308\u0332\r\n"
-            .graphemeIndices(isExtended = true)
-            .toList()
+        val indices =
+            "a\u0310e\u0301o\u0308\u0332\r\n"
+                .graphemeIndices(isExtended = true)
+                .toList()
 
         assertEquals(
             listOf(
@@ -33,9 +35,10 @@ class WordTest {
 
     @Test
     fun unicodeWordsFollowTheReadmeExample() {
-        val words = "The quick (\"brown\") fox can't jump 32.3 feet, right?"
-            .unicodeWords()
-            .toList()
+        val words =
+            "The quick (\"brown\") fox can't jump 32.3 feet, right?"
+                .unicodeWords()
+                .toList()
 
         assertEquals(
             listOf("The", "quick", "brown", "fox", "can't", "jump", "32.3", "feet", "right"),
@@ -90,9 +93,10 @@ class WordTest {
 
     @Test
     fun splitSentenceBoundsFollowTheReadmeExample() {
-        val bounds = "Mr. Fox jumped. [...] The dog was too lazy."
-            .splitSentenceBounds()
-            .toList()
+        val bounds =
+            "Mr. Fox jumped. [...] The dog was too lazy."
+                .splitSentenceBounds()
+                .toList()
 
         assertEquals(
             listOf("Mr. ", "Fox jumped. ", "[...] ", "The dog was too lazy."),
@@ -102,9 +106,10 @@ class WordTest {
 
     @Test
     fun unicodeSentencesFilterNonAlphanumericSentences() {
-        val sentences = "Mr. Fox jumped. [...] The dog was too lazy."
-            .unicodeSentences()
-            .toList()
+        val sentences =
+            "Mr. Fox jumped. [...] The dog was too lazy."
+                .unicodeSentences()
+                .toList()
 
         assertEquals(listOf("Mr. ", "Fox jumped. ", "The dog was too lazy."), sentences)
     }
