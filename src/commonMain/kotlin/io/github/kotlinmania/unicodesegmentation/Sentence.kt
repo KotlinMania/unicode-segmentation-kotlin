@@ -91,6 +91,12 @@ class USentenceBounds internal constructor(
         sentenceRanges(string)
             .map { range -> string.substring(range.first, range.second) }
             .iterator()
+
+    /** View the underlying data as a slice of the original string. */
+    fun asStr(): String = string
+
+    /** View the underlying data as a slice of the original string. */
+    fun asString(): String = string
 }
 
 /** External iterator for sentence boundaries and offsets. */
@@ -101,6 +107,12 @@ class USentenceBoundIndices internal constructor(
         sentenceRanges(string)
             .map { range -> SentenceIndex(range.first, string.substring(range.first, range.second)) }
             .iterator()
+
+    /** View the underlying data as a slice of the original string. */
+    fun asStr(): String = string
+
+    /** View the underlying data as a slice of the original string. */
+    fun asString(): String = string
 }
 
 /** A sentence-boundary item and its offset in the original string. */
