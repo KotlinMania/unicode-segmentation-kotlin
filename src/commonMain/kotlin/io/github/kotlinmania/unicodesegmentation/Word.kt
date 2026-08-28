@@ -38,6 +38,9 @@ class UWordBounds internal constructor(
             .iterator()
 
     /** View the underlying data as a slice of the original string. */
+    fun asStr(): String = string
+
+    /** View the underlying data as a slice of the original string. */
     fun asString(): String = string
 }
 
@@ -49,6 +52,9 @@ class UWordBoundIndices internal constructor(
         wordRanges(string)
             .map { range -> WordIndex(range.first, string.substring(range.first, range.second)) }
             .iterator()
+
+    /** View the underlying data as a slice of the original string. */
+    fun asStr(): String = string
 
     /** View the underlying data as a slice of the original string. */
     fun asString(): String = string

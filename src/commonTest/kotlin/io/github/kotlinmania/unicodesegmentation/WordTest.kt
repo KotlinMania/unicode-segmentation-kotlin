@@ -1,4 +1,4 @@
-// port-lint: source src/word.rs
+// port-lint: tests word.rs
 package io.github.kotlinmania.unicodesegmentation
 
 import kotlin.test.Test
@@ -112,5 +112,17 @@ class WordTest {
                 .toList()
 
         assertEquals(listOf("Mr. ", "Fox jumped. ", "The dog was too lazy."), sentences)
+    }
+
+    @Test
+    fun testSyriacAbbrMark() {
+        val (_, _, cat) = wordCategory(0x70f)
+        assertEquals(WordCat.ALetter, cat)
+    }
+
+    @Test
+    fun testEndOfAyahCat() {
+        val (_, _, cat) = wordCategory(0x6dd)
+        assertEquals(WordCat.Numeric, cat)
     }
 }
