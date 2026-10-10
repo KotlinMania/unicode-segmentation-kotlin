@@ -1,6 +1,8 @@
 // port-lint: source grapheme.rs
 package io.github.kotlinmania.unicodesegmentation
 
+import io.github.kotlinmania.unicodesegmentation.graphemeCategory as lookupGraphemeCategory
+
 /** External sequence for grapheme clusters and offsets. */
 class GraphemeIndices internal constructor(
     private val string: String,
@@ -121,7 +123,7 @@ class GraphemeCursor(
             }
         }
         if (codePoint < cacheLower || codePoint > cacheUpper) {
-            val res = io.github.kotlinmania.unicodesegmentation.graphemeCategory(codePoint)
+            val res = lookupGraphemeCategory(codePoint)
             cacheLower = res.lower
             cacheUpper = res.upper
             cacheCat = res.category
@@ -146,8 +148,9 @@ class GraphemeCursor(
 
     /** Provide additional pre-context when it is needed to decide a boundary. */
     fun provideContext(chunk: String, chunkStart: Int) {
-        val required = preContextOffset
-            ?: throw IllegalStateException("provideContext called when no pre-context was requested")
+        val required =
+            preContextOffset
+                ?: throw IllegalStateException("provideContext called when no pre-context was requested")
         require(chunkStart + chunk.length == required) {
             "chunk does not end at requested pre-context offset $required"
         }
@@ -299,8 +302,9 @@ class GraphemeCursor(
         }
         val offsetInChunk = (offset - chunkStart).coerceAtLeast(0)
         if (catAfter == null) {
-            val span = chunk.nextCodePointSpan(offsetInChunk)
-                ?: return Result.failure(GraphemeIncomplete.InvalidOffset)
+            val span =
+                chunk.nextCodePointSpan(offsetInChunk)
+                    ?: return Result.failure(GraphemeIncomplete.InvalidOffset)
             catAfter = graphemeCategory(span.codePoint)
         }
         if (offset == chunkStart) {
@@ -317,8 +321,9 @@ class GraphemeCursor(
             }
         }
         if (catBefore == null) {
-            val span = chunk.previousCodePointSpan(offsetInChunk)
-                ?: return Result.failure(GraphemeIncomplete.InvalidOffset)
+            val span =
+                chunk.previousCodePointSpan(offsetInChunk)
+                    ?: return Result.failure(GraphemeIncomplete.InvalidOffset)
             catBefore = graphemeCategory(span.codePoint)
         }
         val before = catBefore!!
@@ -350,8 +355,9 @@ class GraphemeCursor(
     fun nextBoundary(chunk: String, chunkStart: Int): Result<Int?> {
         if (offset == len) return Result.success(null)
         val offsetInChunk = (offset - chunkStart).coerceAtLeast(0)
-        var nextSpan = chunk.nextCodePointSpan(offsetInChunk)
-            ?: return Result.failure(GraphemeIncomplete.NextChunk)
+        var nextSpan =
+            chunk.nextCodePointSpan(offsetInChunk)
+                ?: return Result.failure(GraphemeIncomplete.NextChunk)
         while (true) {
             if (resuming) {
                 if (catAfter == null) {
@@ -402,8 +408,9 @@ class GraphemeCursor(
         if (offset == 0) return Result.success(null)
         if (offset == chunkStart) return Result.failure(GraphemeIncomplete.PrevChunk)
         val offsetInChunk = (offset - chunkStart).coerceAtLeast(0)
-        var prevSpan = chunk.previousCodePointSpan(offsetInChunk)
-            ?: return Result.failure(GraphemeIncomplete.PrevChunk)
+        var prevSpan =
+            chunk.previousCodePointSpan(offsetInChunk)
+                ?: return Result.failure(GraphemeIncomplete.PrevChunk)
         while (true) {
             if (offset == chunkStart) {
                 resuming = true
@@ -418,11 +425,12 @@ class GraphemeCursor(
                 state = GraphemeState.Unknown
                 val linker = incbLinkerCount
                 if (linker != null) {
-                    incbLinkerCount = when {
-                        linker > 0 && isIncbLinker(prevSpan.codePoint) -> linker - 1
-                        DerivedProperty.incbExtend(prevSpan.codePoint) -> linker
-                        else -> null
-                    }
+                    incbLinkerCount =
+                        when {
+                            linker > 0 && isIncbLinker(prevSpan.codePoint) -> linker - 1
+                            DerivedProperty.incbExtend(prevSpan.codePoint) -> linker
+                            else -> null
+                        }
                 }
                 val ris = risCount
                 if (ris != null) {
@@ -485,7 +493,7 @@ private fun graphemeBoundaries(string: String, isExtended: Boolean): List<Int> {
     val codePoints =
         string
             .codePointSpans()
-            .map { span -> GraphemeCodePoint(span, graphemeCategory(span.codePoint).category) }
+            .map { span -> GraphemeCodePoint(span, lookupGraphemeCategory(span.codePoint).category) }
     if (codePoints.isEmpty()) return listOf(0)
     val boundaries = mutableListOf(0)
     for (index in 1 until codePoints.size) {
