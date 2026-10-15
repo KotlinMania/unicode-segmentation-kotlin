@@ -169,9 +169,19 @@ Yanked due to accidental breakage and MSRV mistag.
 
 ```kotlin
 dependencies {
-    implementation("io.github.kotlinmania:unicode-segmentation-kotlin:0.1.1")
+    implementation("io.github.kotlinmania:unicode-segmentation-kotlin:0.2.0")
 }
 ```
+
+### Changes in 0.2.0
+
+- Updates `GraphemeCursor` traversal and context handling for chunk boundaries,
+  regional indicators, and emoji sequences.
+- Adds `asStr()` to grapheme, word-boundary, and sentence-boundary iterators,
+  plus `asString()` to sentence-boundary iterators.
+- Removes the previously published `androidNativeArm32`, `androidNativeX86`, and
+  `watchosArm32` targets. Consumers of these targets must remain on `0.1.1` or
+  migrate to a supported target before upgrading.
 
 ### Building
 
