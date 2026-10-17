@@ -113,11 +113,15 @@ private fun <T> bsearchRangeValueTable(
                 insertion = mid
                 high = mid - 1
             }
+
             codePoint > range.upper -> {
                 insertion = mid + 1
                 low = mid + 1
             }
-            else -> return CategoryResult(range.lower, range.upper, range.category)
+
+            else -> {
+                return CategoryResult(range.lower, range.upper, range.category)
+            }
         }
     }
     val lower = if (insertion > 0) ranges[insertion - 1].upper + 1 else defaultLower
