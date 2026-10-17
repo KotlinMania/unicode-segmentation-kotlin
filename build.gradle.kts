@@ -1049,14 +1049,42 @@ tasks.matching { it.name.contains("GenerateSPMPackage") }.configureEach {
                 ?.asFile
         if (spmDir != null && spmDir.exists()) {
             spmDir.walkTopDown().filter { it.name == "Package.swift" }.forEach { file ->
-                val text = file.readText()
+                var text = file.readText()
+                if (text.contains("swift-tools-version: 6.0")) {
+                    text = text.replace("swift-tools-version: 6.0", "swift-tools-version: 5.9")
+                }
                 if (!text.contains("platforms:")) {
-                    file.writeText(
+                    text =
                         text.replaceFirst(
                             Regex("""(let package = Package\s*\(\s*name:\s*"[^"]*",)"""),
-                            "$1\n    platforms: [.macOS(.v14)],",
-                        ),
+                            "$1\n    platforms: [.macOS(\"15.0\")],",
+                        )
+                } else if (text.contains(".macOS(.v15)") || text.contains(".macOS(.v14)")) {
+                    text = text.replace(".macOS(.v15)", ".macOS(\"15.0\")").replace(".macOS(.v14)", ".macOS(\"15.0\")")
+                }
+                file.writeText(text)
+            }
+            // Swift Export spells Foundation's stream classes by their Objective-C names, which
+            // Swift rejects ("'NSInputStream' has been renamed to 'InputStream'").
+            spmDir.walkTopDown().filter { it.isFile && it.extension == "swift" }.forEach { file ->
+                val text = file.readText()
+                val renamed =
+                    text
+                        .replace("Foundation.NSInputStream", "Foundation.InputStream")
+                        .replace("Foundation.NSOutputStream", "Foundation.OutputStream")
+                if (renamed != text) {
+                    file.writeText(renamed)
+                }
+            }
+            spmDir.walkTopDown().filter { it.name == "OrgJetbrainsKotlinxKotlinxSerializationCore.swift" }.forEach { file ->
+                val text = file.readText()
+                val cleaned =
+                    text.replace(
+                        Regex("""@_spi\([^)]+\)\s+public func (?:decodeSequentially|shouldEncodeElementDefault|encodeNotNullMark)\([^)]*\)(?:\s*->\s*[^\n{]+)?\s*\{\s*fatalError\([^)]+\)\s*\}"""),
+                        "",
                     )
+                if (cleaned != text) {
+                    file.writeText(cleaned)
                 }
             }
         }
