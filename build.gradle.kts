@@ -977,7 +977,10 @@ val publishToCentralPortal by tasks.registering {
                 statusBody["deploymentState"]?.toString()
                     ?: error("Central Portal status response did not contain deploymentState: ${statusResponse.body()}")
             when (deploymentState) {
-                "FAILED" -> error("Central Portal deployment failed: ${statusBody["errors"] ?: statusResponse.body()}")
+                "FAILED" -> {
+                    error("Central Portal deployment failed: ${statusBody["errors"] ?: statusResponse.body()}")
+                }
+
                 in terminalStates -> {
                     logger.lifecycle("Central Portal deployment $deploymentId reached $deploymentState.")
                     return@doLast

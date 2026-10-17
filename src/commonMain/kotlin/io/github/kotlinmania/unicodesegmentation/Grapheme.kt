@@ -69,28 +69,52 @@ private enum class PairResult {
 
 private fun checkPair(before: GraphemeCat, after: GraphemeCat): PairResult =
     when {
-        before == GraphemeCat.Cr && after == GraphemeCat.Lf -> PairResult.NotBreak // GB3
-        before == GraphemeCat.Control || before == GraphemeCat.Cr || before == GraphemeCat.Lf -> PairResult.Break // GB4
-        after == GraphemeCat.Control || after == GraphemeCat.Cr || after == GraphemeCat.Lf -> PairResult.Break // GB5
+        before == GraphemeCat.Cr && after == GraphemeCat.Lf -> PairResult.NotBreak
+
+        // GB3
+        before == GraphemeCat.Control || before == GraphemeCat.Cr || before == GraphemeCat.Lf -> PairResult.Break
+
+        // GB4
+        after == GraphemeCat.Control || after == GraphemeCat.Cr || after == GraphemeCat.Lf -> PairResult.Break
+
+        // GB5
         before == GraphemeCat.L &&
             (
                 after == GraphemeCat.L ||
                     after == GraphemeCat.V ||
                     after == GraphemeCat.Lv ||
                     after == GraphemeCat.LvT
-            ) -> PairResult.NotBreak // GB6
+            ) -> PairResult.NotBreak
+
+        // GB6
         (before == GraphemeCat.Lv || before == GraphemeCat.V) &&
-            (after == GraphemeCat.V || after == GraphemeCat.T) -> PairResult.NotBreak // GB7
+            (after == GraphemeCat.V || after == GraphemeCat.T) -> PairResult.NotBreak
+
+        // GB7
         (before == GraphemeCat.LvT || before == GraphemeCat.T) &&
-            after == GraphemeCat.T -> PairResult.NotBreak // GB8
-        after == GraphemeCat.Extend || after == GraphemeCat.Zwj -> PairResult.NotBreak // GB9
-        after == GraphemeCat.SpacingMark -> PairResult.Extended // GB9a
-        before == GraphemeCat.Prepend -> PairResult.Extended // GB9b
-        after == GraphemeCat.InCbConsonant -> PairResult.InCbConsonant // GB9c
+            after == GraphemeCat.T -> PairResult.NotBreak
+
+        // GB8
+        after == GraphemeCat.Extend || after == GraphemeCat.Zwj -> PairResult.NotBreak
+
+        // GB9
+        after == GraphemeCat.SpacingMark -> PairResult.Extended
+
+        // GB9a
+        before == GraphemeCat.Prepend -> PairResult.Extended
+
+        // GB9b
+        after == GraphemeCat.InCbConsonant -> PairResult.InCbConsonant
+
+        // GB9c
         before == GraphemeCat.Zwj &&
-            after == GraphemeCat.ExtendedPictographic -> PairResult.Emoji // GB11
+            after == GraphemeCat.ExtendedPictographic -> PairResult.Emoji
+
+        // GB11
         before == GraphemeCat.RegionalIndicator &&
-            after == GraphemeCat.RegionalIndicator -> PairResult.Regional // GB12, GB13
+            after == GraphemeCat.RegionalIndicator -> PairResult.Regional
+
+        // GB12, GB13
         else -> PairResult.Break // GB999
     }
 
@@ -163,9 +187,18 @@ class GraphemeCursor(
             }
         }
         when (state) {
-            GraphemeState.InCbConsonant -> handleIncbConsonant(chunk, chunkStart)
-            GraphemeState.Regional -> handleRegional(chunk, chunkStart)
-            GraphemeState.Emoji -> handleEmoji(chunk, chunkStart)
+            GraphemeState.InCbConsonant -> {
+                handleIncbConsonant(chunk, chunkStart)
+            }
+
+            GraphemeState.Regional -> {
+                handleRegional(chunk, chunkStart)
+            }
+
+            GraphemeState.Emoji -> {
+                handleEmoji(chunk, chunkStart)
+            }
+
             else -> {
                 if (catBefore == null && offset == chunk.length + chunkStart) {
                     val span = chunk.previousCodePointSpan(chunk.length)
@@ -188,8 +221,14 @@ class GraphemeCursor(
 
     private fun isBoundaryResult(): Result<Boolean> =
         when (state) {
-            GraphemeState.Break -> Result.success(true)
-            GraphemeState.NotBreak -> Result.success(false)
+            GraphemeState.Break -> {
+                Result.success(true)
+            }
+
+            GraphemeState.NotBreak -> {
+                Result.success(false)
+            }
+
             else -> {
                 val preContext = preContextOffset
                 if (preContext != null) {
@@ -216,7 +255,11 @@ class GraphemeCursor(
                     count += 1
                     incbLinkerCount = count
                 }
-                DerivedProperty.incbExtend(codePoint) -> Unit
+
+                DerivedProperty.incbExtend(codePoint) -> {
+                    Unit
+                }
+
                 else -> {
                     val result = !((incbLinkerCount ?: 0) > 0 && graphemeCategory(codePoint) == GraphemeCat.InCbConsonant)
                     decide(result)
@@ -268,11 +311,15 @@ class GraphemeCursor(
             val span = chunk.previousCodePointSpan(index) ?: break
             index = span.start
             when (graphemeCategory(span.codePoint)) {
-                GraphemeCat.Extend -> Unit
+                GraphemeCat.Extend -> {
+                    Unit
+                }
+
                 GraphemeCat.ExtendedPictographic -> {
                     decide(false)
                     return
                 }
+
                 else -> {
                     decide(true)
                     return
@@ -329,13 +376,23 @@ class GraphemeCursor(
         val before = catBefore!!
         val after = catAfter!!
         return when (checkPair(before, after)) {
-            PairResult.NotBreak -> decision(false)
-            PairResult.Break -> decision(true)
-            PairResult.Extended -> decision(!isExtended)
+            PairResult.NotBreak -> {
+                decision(false)
+            }
+
+            PairResult.Break -> {
+                decision(true)
+            }
+
+            PairResult.Extended -> {
+                decision(!isExtended)
+            }
+
             PairResult.InCbConsonant -> {
                 handleIncbConsonant(chunk.substring(0, offsetInChunk), chunkStart)
                 isBoundaryResult()
             }
+
             PairResult.Regional -> {
                 val ris = risCount
                 if (ris != null) {
@@ -344,6 +401,7 @@ class GraphemeCursor(
                 handleRegional(chunk.substring(0, offsetInChunk), chunkStart)
                 isBoundaryResult()
             }
+
             PairResult.Emoji -> {
                 handleEmoji(chunk.substring(0, offsetInChunk), chunkStart)
                 isBoundaryResult()
@@ -514,12 +572,15 @@ private fun isGraphemeBoundary(
     val after = codePoints[index].category
     return when {
         before == GraphemeCat.Cr && after == GraphemeCat.Lf -> false
+
         before == GraphemeCat.Control ||
             before == GraphemeCat.Cr ||
             before == GraphemeCat.Lf -> true
+
         after == GraphemeCat.Control ||
             after == GraphemeCat.Cr ||
             after == GraphemeCat.Lf -> true
+
         before == GraphemeCat.L &&
             (
                 after == GraphemeCat.L ||
@@ -527,18 +588,27 @@ private fun isGraphemeBoundary(
                     after == GraphemeCat.Lv ||
                     after == GraphemeCat.LvT
             ) -> false
+
         (before == GraphemeCat.Lv || before == GraphemeCat.V) &&
             (after == GraphemeCat.V || after == GraphemeCat.T) -> false
+
         (before == GraphemeCat.LvT || before == GraphemeCat.T) &&
             after == GraphemeCat.T -> false
+
         after == GraphemeCat.Extend || after == GraphemeCat.Zwj -> false
+
         after == GraphemeCat.SpacingMark -> !isExtended
+
         before == GraphemeCat.Prepend -> !isExtended
+
         after == GraphemeCat.InCbConsonant -> !hasIncbConsonantContext(codePoints, index, isExtended)
+
         before == GraphemeCat.Zwj &&
             after == GraphemeCat.ExtendedPictographic -> !hasEmojiContext(codePoints, index)
+
         before == GraphemeCat.RegionalIndicator &&
             after == GraphemeCat.RegionalIndicator -> hasEvenRegionalCount(codePoints, index)
+
         else -> true
     }
 }
@@ -554,11 +624,18 @@ private fun hasIncbConsonantContext(
     while (cursor >= 0) {
         val codePoint = codePoints[cursor].span.codePoint
         when {
-            isIncbLinker(codePoint) -> linkerCount += 1
-            DerivedProperty.incbExtend(codePoint) -> Unit
-            else ->
+            isIncbLinker(codePoint) -> {
+                linkerCount += 1
+            }
+
+            DerivedProperty.incbExtend(codePoint) -> {
+                Unit
+            }
+
+            else -> {
                 return linkerCount > 0 &&
                     codePoints[cursor].category == GraphemeCat.InCbConsonant
+            }
         }
         cursor -= 1
     }

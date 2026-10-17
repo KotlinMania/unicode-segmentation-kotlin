@@ -161,7 +161,10 @@ private fun nextWordBoundary(codePoints: List<WordCodePoint>, start: Int): Int {
                     cursor += 1
                     continue
                 }
-                else -> Unit
+
+                else -> {
+                    Unit
+                }
             }
         }
 
@@ -201,7 +204,10 @@ private fun nextWordBoundary(codePoints: List<WordCodePoint>, start: Int): Int {
                 category = saveCategory
                 takeCurrent = false
             }
-            else -> Unit
+
+            else -> {
+                Unit
+            }
         }
     }
 
@@ -221,23 +227,51 @@ private fun nextWordState(
 ): UWordBoundsState? {
     val nextCategory = codePoints.getOrNull(index + 1)?.category
     return when (state) {
-        UWordBoundsState.Start ->
+        UWordBoundsState.Start -> {
             when (category) {
                 WordCat.Cr -> {
                     if (nextCategory == WordCat.Lf) advanceIndex(1)
                     null
                 }
-                WordCat.ALetter -> UWordBoundsState.Letter
-                WordCat.HebrewLetter -> UWordBoundsState.HLetter
-                WordCat.Numeric -> UWordBoundsState.Numeric
-                WordCat.Katakana -> UWordBoundsState.Katakana
-                WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
-                WordCat.RegionalIndicator -> UWordBoundsState.Regional(RegionalState.Half)
+
+                WordCat.ALetter -> {
+                    UWordBoundsState.Letter
+                }
+
+                WordCat.HebrewLetter -> {
+                    UWordBoundsState.HLetter
+                }
+
+                WordCat.Numeric -> {
+                    UWordBoundsState.Numeric
+                }
+
+                WordCat.Katakana -> {
+                    UWordBoundsState.Katakana
+                }
+
+                WordCat.ExtendNumLet -> {
+                    UWordBoundsState.ExtendNumLet
+                }
+
+                WordCat.RegionalIndicator -> {
+                    UWordBoundsState.Regional(RegionalState.Half)
+                }
+
                 WordCat.Lf,
                 WordCat.Newline,
-                -> null
-                WordCat.Zwj -> UWordBoundsState.Zwj
-                WordCat.WSegSpace -> UWordBoundsState.WSegSpace
+                -> {
+                    null
+                }
+
+                WordCat.Zwj -> {
+                    UWordBoundsState.Zwj
+                }
+
+                WordCat.WSegSpace -> {
+                    UWordBoundsState.WSegSpace
+                }
+
                 else -> {
                     if (nextCategory == WordCat.Format ||
                         nextCategory == WordCat.Extend ||
@@ -249,54 +283,98 @@ private fun nextWordState(
                     }
                 }
             }
-        UWordBoundsState.WSegSpace ->
+        }
+
+        UWordBoundsState.WSegSpace -> {
             when {
-                category == WordCat.WSegSpace && !skippedFormatExtend -> UWordBoundsState.WSegSpace
+                category == WordCat.WSegSpace && !skippedFormatExtend -> {
+                    UWordBoundsState.WSegSpace
+                }
+
                 else -> {
                     breakBeforeCurrent()
                     null
                 }
             }
+        }
+
         UWordBoundsState.Zwj -> {
             breakBeforeCurrent()
             null
         }
+
         UWordBoundsState.Letter,
         UWordBoundsState.HLetter,
-        -> letterState(state, category, index, save, breakBeforeCurrent)
-        UWordBoundsState.Numeric -> numericState(category, index, save, breakBeforeCurrent)
-        UWordBoundsState.Katakana ->
+        -> {
+            letterState(state, category, index, save, breakBeforeCurrent)
+        }
+
+        UWordBoundsState.Numeric -> {
+            numericState(category, index, save, breakBeforeCurrent)
+        }
+
+        UWordBoundsState.Katakana -> {
             when (category) {
-                WordCat.Katakana -> UWordBoundsState.Katakana
-                WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
+                WordCat.Katakana -> {
+                    UWordBoundsState.Katakana
+                }
+
+                WordCat.ExtendNumLet -> {
+                    UWordBoundsState.ExtendNumLet
+                }
+
                 else -> {
                     breakBeforeCurrent()
                     null
                 }
             }
-        UWordBoundsState.ExtendNumLet ->
+        }
+
+        UWordBoundsState.ExtendNumLet -> {
             when (category) {
-                WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
-                WordCat.ALetter -> UWordBoundsState.Letter
-                WordCat.HebrewLetter -> UWordBoundsState.HLetter
-                WordCat.Numeric -> UWordBoundsState.Numeric
-                WordCat.Katakana -> UWordBoundsState.Katakana
+                WordCat.ExtendNumLet -> {
+                    UWordBoundsState.ExtendNumLet
+                }
+
+                WordCat.ALetter -> {
+                    UWordBoundsState.Letter
+                }
+
+                WordCat.HebrewLetter -> {
+                    UWordBoundsState.HLetter
+                }
+
+                WordCat.Numeric -> {
+                    UWordBoundsState.Numeric
+                }
+
+                WordCat.Katakana -> {
+                    UWordBoundsState.Katakana
+                }
+
                 else -> {
                     breakBeforeCurrent()
                     null
                 }
             }
-        is UWordBoundsState.Regional -> regionalState(state.state, category, breakBeforeCurrent)
+        }
+
+        is UWordBoundsState.Regional -> {
+            regionalState(state.state, category, breakBeforeCurrent)
+        }
+
         UWordBoundsState.Emoji -> {
             breakBeforeCurrent()
             null
         }
-        is UWordBoundsState.FormatExtend ->
+
+        is UWordBoundsState.FormatExtend -> {
             formatExtendState(
                 type = state.type,
                 category = category,
                 breakBeforeCurrent = breakBeforeCurrent,
             )
+        }
     }
 }
 
@@ -308,16 +386,31 @@ private fun letterState(
     breakBeforeCurrent: () -> Unit,
 ): UWordBoundsState? =
     when (category) {
-        WordCat.ALetter -> UWordBoundsState.Letter
-        WordCat.HebrewLetter -> UWordBoundsState.HLetter
-        WordCat.Numeric -> UWordBoundsState.Numeric
-        WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
+        WordCat.ALetter -> {
+            UWordBoundsState.Letter
+        }
+
+        WordCat.HebrewLetter -> {
+            UWordBoundsState.HLetter
+        }
+
+        WordCat.Numeric -> {
+            UWordBoundsState.Numeric
+        }
+
+        WordCat.ExtendNumLet -> {
+            UWordBoundsState.ExtendNumLet
+        }
+
         WordCat.DoubleQuote if state == UWordBoundsState.HLetter -> {
             save(index, category)
             UWordBoundsState.FormatExtend(FormatExtendType.RequireHLetter)
         }
-        WordCat.SingleQuote if state == UWordBoundsState.HLetter ->
+
+        WordCat.SingleQuote if state == UWordBoundsState.HLetter -> {
             UWordBoundsState.FormatExtend(FormatExtendType.AcceptQLetter)
+        }
+
         WordCat.MidLetter,
         WordCat.MidNumLet,
         WordCat.SingleQuote,
@@ -325,6 +418,7 @@ private fun letterState(
             save(index, category)
             UWordBoundsState.FormatExtend(FormatExtendType.RequireLetter)
         }
+
         else -> {
             breakBeforeCurrent()
             null
@@ -338,10 +432,22 @@ private fun numericState(
     breakBeforeCurrent: () -> Unit,
 ): UWordBoundsState? =
     when (category) {
-        WordCat.Numeric -> UWordBoundsState.Numeric
-        WordCat.ALetter -> UWordBoundsState.Letter
-        WordCat.HebrewLetter -> UWordBoundsState.HLetter
-        WordCat.ExtendNumLet -> UWordBoundsState.ExtendNumLet
+        WordCat.Numeric -> {
+            UWordBoundsState.Numeric
+        }
+
+        WordCat.ALetter -> {
+            UWordBoundsState.Letter
+        }
+
+        WordCat.HebrewLetter -> {
+            UWordBoundsState.HLetter
+        }
+
+        WordCat.ExtendNumLet -> {
+            UWordBoundsState.ExtendNumLet
+        }
+
         WordCat.MidNum,
         WordCat.MidNumLet,
         WordCat.SingleQuote,
@@ -349,6 +455,7 @@ private fun numericState(
             save(index, category)
             UWordBoundsState.FormatExtend(FormatExtendType.RequireNumeric)
         }
+
         else -> {
             breakBeforeCurrent()
             null
@@ -365,14 +472,20 @@ private fun regionalState(
             breakBeforeCurrent()
             null
         }
-        RegionalState.Half ->
+
+        RegionalState.Half -> {
             when (category) {
-                WordCat.RegionalIndicator -> UWordBoundsState.Regional(RegionalState.Full)
+                WordCat.RegionalIndicator -> {
+                    UWordBoundsState.Regional(RegionalState.Full)
+                }
+
                 else -> {
                     breakBeforeCurrent()
                     null
                 }
             }
+        }
+
         RegionalState.Unknown -> {
             breakBeforeCurrent()
             null
@@ -385,19 +498,32 @@ private fun formatExtendState(
     breakBeforeCurrent: () -> Unit,
 ): UWordBoundsState? =
     when {
-        type == FormatExtendType.RequireNumeric && category == WordCat.Numeric ->
+        type == FormatExtendType.RequireNumeric && category == WordCat.Numeric -> {
             UWordBoundsState.Numeric
+        }
+
         (type == FormatExtendType.RequireLetter || type == FormatExtendType.AcceptQLetter) &&
-            category == WordCat.ALetter -> UWordBoundsState.Letter
+            category == WordCat.ALetter -> {
+            UWordBoundsState.Letter
+        }
+
         (type == FormatExtendType.RequireLetter || type == FormatExtendType.AcceptQLetter) &&
-            category == WordCat.HebrewLetter -> UWordBoundsState.HLetter
-        type == FormatExtendType.RequireHLetter && category == WordCat.HebrewLetter ->
+            category == WordCat.HebrewLetter -> {
             UWordBoundsState.HLetter
+        }
+
+        type == FormatExtendType.RequireHLetter && category == WordCat.HebrewLetter -> {
+            UWordBoundsState.HLetter
+        }
+
         type == FormatExtendType.AcceptNone || type == FormatExtendType.AcceptQLetter -> {
             breakBeforeCurrent()
             null
         }
-        else -> null
+
+        else -> {
+            null
+        }
     }
 
 private fun hasAlphanumeric(text: String): Boolean =
