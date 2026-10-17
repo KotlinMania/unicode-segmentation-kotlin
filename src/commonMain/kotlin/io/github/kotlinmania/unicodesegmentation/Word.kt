@@ -152,19 +152,10 @@ private fun nextWordBoundary(codePoints: List<WordCodePoint>, start: Int): Int {
         category = codePoints[cursor].category
 
         if (state != UWordBoundsState.Start) {
-            when (category) {
-                WordCat.Extend,
-                WordCat.Format,
-                WordCat.Zwj,
-                -> {
-                    skippedFormatExtend = true
-                    cursor += 1
-                    continue
-                }
-
-                else -> {
-                    Unit
-                }
+            if (category == WordCat.Extend || category == WordCat.Format || category == WordCat.Zwj) {
+                skippedFormatExtend = true
+                cursor += 1
+                continue
             }
         }
 
@@ -206,7 +197,7 @@ private fun nextWordBoundary(codePoints: List<WordCodePoint>, start: Int): Int {
             }
 
             else -> {
-                Unit
+                // Other FormatExtend types do not roll back.
             }
         }
     }

@@ -257,7 +257,7 @@ class GraphemeCursor(
                 }
 
                 DerivedProperty.incbExtend(codePoint) -> {
-                    Unit
+                    // Continue scanning.
                 }
 
                 else -> {
@@ -312,7 +312,7 @@ class GraphemeCursor(
             index = span.start
             when (graphemeCategory(span.codePoint)) {
                 GraphemeCat.Extend -> {
-                    Unit
+                    // Continue scanning.
                 }
 
                 GraphemeCat.ExtendedPictographic -> {
@@ -629,7 +629,7 @@ private fun hasIncbConsonantContext(
             }
 
             DerivedProperty.incbExtend(codePoint) -> {
-                Unit
+                // Continue scanning.
             }
 
             else -> {
