@@ -520,11 +520,34 @@ private fun formatExtendState(
 private fun hasAlphanumeric(text: String): Boolean =
     text.codePointSpans().any { isAlphanumeric(it.codePoint) }
 
-internal fun newWordBounds(s: String): UWordBounds = UWordBounds(s)
+fun newWordBounds(s: String): UWordBounds = UWordBounds(s)
 
-internal fun newWordBoundIndices(s: String): UWordBoundIndices = UWordBoundIndices(s)
+fun newWordBoundIndices(s: String): UWordBoundIndices = UWordBoundIndices(s)
 
-internal fun newUnicodeWords(s: String): UnicodeWords = UnicodeWords(newWordBounds(s))
+fun newUnicodeWords(s: String): UnicodeWords = UnicodeWords(newWordBounds(s))
 
-internal fun newUnicodeWordIndices(s: String): UnicodeWordIndices =
+fun newUnicodeWordIndices(s: String): UnicodeWordIndices =
     UnicodeWordIndices(newWordBoundIndices(s))
+
+/**
+ * Returns a sequence over the words of this string, separated on word boundaries.
+ */
+fun String.unicodeWords(): UnicodeWords = newUnicodeWords(this)
+
+/**
+ * Returns a sequence over the words of this string, separated on word boundaries, and their
+ * offsets.
+ */
+fun String.unicodeWordIndices(): UnicodeWordIndices =
+    newUnicodeWordIndices(this)
+
+/**
+ * Returns a sequence over substrings of this string separated on word boundaries.
+ */
+fun String.splitWordBounds(): UWordBounds = newWordBounds(this)
+
+/**
+ * Returns a sequence over substrings of this string, split on word boundaries, and their offsets.
+ */
+fun String.splitWordBoundIndices(): UWordBoundIndices =
+    newWordBoundIndices(this)
