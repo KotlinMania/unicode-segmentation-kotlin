@@ -43,11 +43,23 @@ data class GraphemeIndex(
     val value: String,
 )
 
-internal fun newGraphemes(s: String, isExtended: Boolean): Graphemes =
+fun newGraphemes(s: String, isExtended: Boolean): Graphemes =
     Graphemes(s, isExtended)
 
-internal fun newGraphemeIndices(s: String, isExtended: Boolean): GraphemeIndices =
+fun newGraphemeIndices(s: String, isExtended: Boolean): GraphemeIndices =
     GraphemeIndices(s, isExtended)
+
+/**
+ * Returns a sequence over the grapheme clusters of this string.
+ */
+fun String.graphemes(isExtended: Boolean): Graphemes =
+    newGraphemes(this, isExtended)
+
+/**
+ * Returns a sequence over the grapheme clusters of this string and their offsets.
+ */
+fun String.graphemeIndices(isExtended: Boolean): GraphemeIndices =
+    newGraphemeIndices(this, isExtended)
 
 private enum class GraphemeState {
     Unknown,

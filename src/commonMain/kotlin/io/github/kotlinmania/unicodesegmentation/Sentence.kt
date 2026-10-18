@@ -136,14 +136,33 @@ data class SentenceIndex(
     val value: String,
 )
 
-internal fun newSentenceBounds(source: String): USentenceBounds =
+fun newSentenceBounds(source: String): USentenceBounds =
     USentenceBounds(source)
 
-internal fun newSentenceBoundIndices(source: String): USentenceBoundIndices =
+fun newSentenceBoundIndices(source: String): USentenceBoundIndices =
     USentenceBoundIndices(source)
 
-internal fun newUnicodeSentences(s: String): UnicodeSentences =
+fun newUnicodeSentences(s: String): UnicodeSentences =
     UnicodeSentences(newSentenceBounds(s))
+
+/**
+ * Returns a sequence over substrings of this string separated on sentence boundaries.
+ */
+fun String.unicodeSentences(): UnicodeSentences =
+    newUnicodeSentences(this)
+
+/**
+ * Returns a sequence over substrings of this string separated on sentence boundaries.
+ */
+fun String.splitSentenceBounds(): USentenceBounds =
+    newSentenceBounds(this)
+
+/**
+ * Returns a sequence over substrings of this string, split on sentence boundaries, and their
+ * offsets.
+ */
+fun String.splitSentenceBoundIndices(): USentenceBoundIndices =
+    newSentenceBoundIndices(this)
 
 private fun sentenceRanges(string: String): List<Pair<Int, Int>> =
     sentenceBreaks(string).zipWithNext()
