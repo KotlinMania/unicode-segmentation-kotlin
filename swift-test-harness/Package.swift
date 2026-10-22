@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "SwiftTestHarness",
     platforms: [
-        .macOS(.v14),
+        .macOS(.v15),
     ],
     dependencies: [
         .package(name: "UnicodeSegmentation", path: "../build/SPMPackage/macosArm64/Debug")
@@ -15,23 +15,12 @@ let package = Package(
             dependencies: [
                 .product(name: "UnicodeSegmentationLibrary", package: "UnicodeSegmentation")
             ],
-            swiftSettings: [
-                .unsafeFlags([
-                    "-F", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
-                ]),
-            ],
             linkerSettings: [
                 .unsafeFlags([
                     "-L", "../build/swift-test",
                     "-lUnicodeSegmentation",
-                    "-F", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
-                    "-Xlinker", "-rpath",
-                    "-Xlinker", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks",
-                    "-Xlinker", "-rpath",
-                    "-Xlinker", "/Library/Developer/CommandLineTools/Library/Developer/usr/lib",
                 ]),
             ]
         ),
     ]
 )
-

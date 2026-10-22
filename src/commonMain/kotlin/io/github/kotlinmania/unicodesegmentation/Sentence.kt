@@ -24,22 +24,37 @@ private data class SentenceBreaksState(
     fun next(category: SentenceCat): SentenceBreaksState {
         val nextPart =
             when {
-                fourth == StatePart.ClosePlus && category == SentenceCat.Close -> fourth
-                fourth == StatePart.SpPlus && category == SentenceCat.Sp -> fourth
-                else ->
+                fourth == StatePart.ClosePlus && category == SentenceCat.Close -> {
+                    fourth
+                }
+
+                fourth == StatePart.SpPlus && category == SentenceCat.Sp -> {
+                    fourth
+                }
+
+                else -> {
                     when (category) {
                         SentenceCat.Cr -> StatePart.CR
+
                         SentenceCat.Lf -> StatePart.LF
+
                         SentenceCat.Sep -> StatePart.Sep
+
                         SentenceCat.ATerm -> StatePart.ATerm
+
                         SentenceCat.Upper,
                         SentenceCat.Lower,
                         -> StatePart.UpperLower
+
                         SentenceCat.Close -> StatePart.ClosePlus
+
                         SentenceCat.Sp -> StatePart.SpPlus
+
                         SentenceCat.STerm -> StatePart.STerm
+
                         else -> StatePart.Other
                     }
+                }
             }
         return if (nextPart == fourth &&
             (fourth == StatePart.ClosePlus || fourth == StatePart.SpPlus)
@@ -121,14 +136,33 @@ data class SentenceIndex(
     val value: String,
 )
 
-internal fun newSentenceBounds(source: String): USentenceBounds =
+fun newSentenceBounds(source: String): USentenceBounds =
     USentenceBounds(source)
 
-internal fun newSentenceBoundIndices(source: String): USentenceBoundIndices =
+fun newSentenceBoundIndices(source: String): USentenceBoundIndices =
     USentenceBoundIndices(source)
 
-internal fun newUnicodeSentences(s: String): UnicodeSentences =
+fun newUnicodeSentences(s: String): UnicodeSentences =
     UnicodeSentences(newSentenceBounds(s))
+
+/**
+ * Returns a sequence over substrings of this string separated on sentence boundaries.
+ */
+fun String.unicodeSentences(): UnicodeSentences =
+    newUnicodeSentences(this)
+
+/**
+ * Returns a sequence over substrings of this string separated on sentence boundaries.
+ */
+fun String.splitSentenceBounds(): USentenceBounds =
+    newSentenceBounds(this)
+
+/**
+ * Returns a sequence over substrings of this string, split on sentence boundaries, and their
+ * offsets.
+ */
+fun String.splitSentenceBoundIndices(): USentenceBoundIndices =
+    newSentenceBoundIndices(this)
 
 private fun sentenceRanges(string: String): List<Pair<Int, Int>> =
     sentenceBreaks(string).zipWithNext()
@@ -148,23 +182,31 @@ private fun sentenceBreaks(source: String): List<Int> {
 
         when {
             stateBefore.match1(StatePart.Sot) -> breaks.add(positionBefore)
+
             nextCategory == SentenceCat.Lf && stateBefore.match1(StatePart.CR) -> Unit
+
             stateBefore.match1(StatePart.Sep) ||
                 stateBefore.match1(StatePart.CR) ||
                 stateBefore.match1(StatePart.LF) -> breaks.add(positionBefore)
+
             nextCategory == SentenceCat.Extend ||
                 nextCategory == SentenceCat.Format -> state = stateBefore
+
             nextCategory == SentenceCat.Numeric &&
                 stateBefore.match1(StatePart.ATerm) -> Unit
+
             nextCategory == SentenceCat.Upper &&
                 stateBefore.match2(StatePart.UpperLower, StatePart.ATerm) -> Unit
+
             matchSb8(stateBefore, spans, index) -> Unit
+
             (
                 nextCategory == SentenceCat.SContinue ||
                     nextCategory == SentenceCat.STerm ||
                     nextCategory == SentenceCat.ATerm
             ) &&
                 matchSb8a(stateBefore) -> Unit
+
             (
                 nextCategory == SentenceCat.Close ||
                     nextCategory == SentenceCat.Sp ||
@@ -173,6 +215,7 @@ private fun sentenceBreaks(source: String): List<Int> {
                     nextCategory == SentenceCat.Lf
             ) &&
                 matchSb9(stateBefore) -> Unit
+
             (
                 nextCategory == SentenceCat.Sp ||
                     nextCategory == SentenceCat.Sep ||
@@ -180,6 +223,7 @@ private fun sentenceBreaks(source: String): List<Int> {
                     nextCategory == SentenceCat.Lf
             ) &&
                 matchSb8a(stateBefore) -> Unit
+
             matchSb11(stateBefore) -> breaks.add(positionBefore)
         }
     }
@@ -205,6 +249,7 @@ private fun matchSb8(
         for (cursor in start until spans.size) {
             when (sentenceCategory(spans[cursor].codePoint).category) {
                 SentenceCat.Lower -> return true
+
                 SentenceCat.OLetter,
                 SentenceCat.Upper,
                 SentenceCat.Sep,
@@ -213,6 +258,7 @@ private fun matchSb8(
                 SentenceCat.STerm,
                 SentenceCat.ATerm,
                 -> return false
+
                 else -> Unit
             }
         }
@@ -240,6 +286,7 @@ private fun matchSb11(state: SentenceBreaksState): Boolean {
             StatePart.CR,
             StatePart.LF,
             -> 2
+
             else -> 3
         }
     if (state.partAt(index) == StatePart.SpPlus) {

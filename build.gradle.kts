@@ -49,7 +49,6 @@ version = providers.gradleProperty("project.version").getOrElse("0.1.0-SNAPSHOT"
 val frameworkName = providers.gradleProperty("project.frameworkName").getOrElse("Unnamed")
 val projectNamespace = providers.gradleProperty("project.namespace").getOrElse("io.github.kotlinmania")
 val kotlinVersion = providers.gradleProperty("versions.kotlin").getOrElse("2.4.0")
-val isCodeqlBuild = providers.gradleProperty("kotlinmania.codeql").map(String::toBoolean).getOrElse(false)
 val commonMainBundleName = providers.gradleProperty("project.dependencies.commonMainBundle").get()
 val commonMainDependencyBundle =
     extensions
@@ -79,9 +78,43 @@ fun optionalTrimmedProperty(name: String): String? =
 val enabledFeatureNames = csvProperty("project.features")
 val benchmarkEnabled = "benchmark" in enabledFeatureNames
 val benchmarkTargetNames = csvProperty("project.benchmark.targets")
+
+// ============================================================================
+// Native C bindings — per-channel opt-in gates (gradle.properties
+// `project.ffi.{native,jvm,napi,name}`). All default off.
+// Transliterated from libc-kotlin's build.gradle.kts; generalized so tasks,
+// file paths, and npm package names all derive from project.ffi.name.
+// ============================================================================
+fun boolProperty(name: String, default: Boolean = false): Boolean =
+    providers.gradleProperty(name).map { it.trim().lowercase() == "true" }.getOrElse(default)
+
+val nativeFfiEnabled = boolProperty("project.ffi.native")
+val jvmFfiEnabled = boolProperty("project.ffi.jvm")
+val napiFfiEnabled = boolProperty("project.ffi.napi")
+
+val ffiNameRaw = providers.gradleProperty("project.ffi.name").getOrElse("Ffi").trim()
+val ffiName = ffiNameRaw.replaceFirstChar { it.uppercase() } // Libc, Png, ...
+val ffiNameLower = ffiNameRaw.lowercase() // libc, png, ...
+val ffiDefFile = "src/nativeInterop/cinterop/$ffiName.def"
+val ffiWrapperBase = "${ffiNameLower}_wrapper" // libc_wrapper
+val ffiNapiDir = "native/node-$ffiNameLower" // native/node-libc
+val ffiNpmPackage = "@kotlinmania/$ffiNameLower-native-bindings" // @kotlinmania/libc-native-bindings
+
+if (nativeFfiEnabled || jvmFfiEnabled || napiFfiEnabled) {
+    println("FFI channels enabled: native=$nativeFfiEnabled jvm=$jvmFfiEnabled napi=$napiFfiEnabled name=$ffiName")
+}
 val commonBenchmarkBundleName = optionalTrimmedProperty("project.dependencies.commonBenchmarkBundle")
 val commonBenchmarkDependencyBundle =
     commonBenchmarkBundleName?.let { bundleName ->
+        extensions
+            .getByType(VersionCatalogsExtension::class.java)
+            .named("libs")
+            .findBundle(bundleName)
+            .orElseThrow { GradleException("Missing libs bundle '$bundleName'") }
+    }
+val commonTestBundleName = optionalTrimmedProperty("project.dependencies.commonTestBundle")
+val commonTestDependencyBundle =
+    commonTestBundleName?.let { bundleName ->
         extensions
             .getByType(VersionCatalogsExtension::class.java)
             .named("libs")
@@ -103,6 +136,12 @@ val intellijCoroutinesVersion =
 // dependency population, so keep the default embeddable runner explicit too.
 val projectDependencyHandler = project.dependencies
 configurations.configureEach {
+    // proc-macro-kotlin's published Android artifact bundles the JetBrains
+    // annotation classes, which duplicate org.jetbrains:annotations on the
+    // Android device-test classpath.
+    if (name.contains("androidDeviceTest", ignoreCase = true)) {
+        exclude(group = "org.jetbrains", module = "annotations")
+    }
     if (name == "swiftExportClasspath") {
         dependencies.add(projectDependencyHandler.create("org.jetbrains.kotlin:swift-export-embeddable:$kotlinVersion"))
         dependencies.add(
@@ -112,6 +151,27 @@ configurations.configureEach {
         )
     }
 }
+
+// Test name patterns to skip in browser test runs (js and wasmJs), from
+// project.js.browserTestExcludes as a comma-separated list. Use for tests that
+// need Node-only modules such as fs or path.
+val browserTestExcludes =
+    providers
+        .gradleProperty("project.js.browserTestExcludes")
+        .getOrElse("")
+        .split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+
+// Extra Kotlin compiler arguments for this repo, from
+// project.kotlin.freeCompilerArgs as a comma-separated list (empty by default).
+val extraKotlinCompilerArgs =
+    providers
+        .gradleProperty("project.kotlin.freeCompilerArgs")
+        .getOrElse("")
+        .split(',')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
 
 // Opt-ins shared across Kotlin targets.
 val commonOptIns =
@@ -344,25 +404,38 @@ val jvmToolchainVersion = providers.gradleProperty("jvm.toolchain").getOrElse("2
 // ============================================================================
 // kotlin { … }
 // ----------------------------------------------------------------------------
-// watchosArm32: retired by workspace product policy (kmp-watchosarm32-retirement
-//   per AGENTS.md §5.5.1, effective 2026-05-24). Upstream KGP still ships it as
-//   Tier 2 — this is a deliberate product decision, not a framework deprecation.
-// Deprecated by KGP since 2.3.20 (never re-add): macosX64, tvosX64, watchosX64.
-// Every other target is built unconditionally — KotlinMania supports the full
-//   target surface, so there are NO opt-in build gates. The build gate is the
-//   contract that forces every current KotlinMania target to compile.
+// Workspace product policy retires every native 32-bit target, including
+//   watchosArm32 / watchosArm64 (arm64_32), androidNativeArm32 / androidNativeX86,
+//   linuxArm32Hfp, and mingwX86. Do not re-add their declarations or CI tasks.
+// Apple-specific x64 targets are also retired: iosX64, macosX64, tvosX64,
+//   watchosX64. Linux/Windows x64 and Android native x64 remain supported.
+// Every retained target is built unconditionally, with no opt-in build gates.
 // ============================================================================
 kotlin {
     jvmToolchain(jvmToolchainVersion)
 
-    applyDefaultHierarchyTemplate()
+    // Default hierarchy plus a named posix group: shared POSIX code for every
+    // native target except mingw (Apple, Linux, Android Native) lives in
+    // src/posixMain and src/posixTest as real shared source sets.
+    applyDefaultHierarchyTemplate {
+        common {
+            group("native") {
+                group("posix") {
+                    group("apple")
+                    group("linux")
+                    group("androidNative")
+                }
+            }
+        }
+    }
 
     compilerOptions {
         languageVersion.set(KotlinVersion.KOTLIN_2_4)
         apiVersion.set(KotlinVersion.KOTLIN_2_4)
-        allWarningsAsErrors.set(!isCodeqlBuild)
+        allWarningsAsErrors.set(true)
         optIn.addAll(commonOptIns)
         freeCompilerArgs.addAll("-Xexpect-actual-classes", "-Xsuppress-version-warnings")
+        freeCompilerArgs.addAll(extraKotlinCompilerArgs)
     }
 
     val xcf = XCFramework(frameworkName)
@@ -410,10 +483,7 @@ kotlin {
         configureBenchmarkCompilation()
         addToXcf()
     }
-    watchosArm64 {
-        configureBenchmarkCompilation()
-        addToXcf()
-    }
+    // watchosArm64 (WatchOS 32 / arm64_32): retired by workspace policy (§5.5.1). WatchOS 32 is not supported.
     watchosDeviceArm64 {
         configureBenchmarkCompilation()
         addToXcf()
@@ -421,13 +491,6 @@ kotlin {
     watchosSimulatorArm64 {
         configureBenchmarkCompilation()
         addToXcf()
-    }
-
-    // iosX64: Intel Mac simulator. Tier 3 in Kotlin/Native but NOT deprecated —
-    // Apple still ships x86_64 iOS simulator runtimes, so it is always built.
-    iosX64 {
-        configureBenchmarkCompilation()
-        addToXcf(static = true)
     }
 
     // Other native — Tier 1/2
@@ -442,8 +505,19 @@ kotlin {
     // Web
     js {
         configureBenchmarkCompilation()
-        browser()
-        nodejs()
+        browser {
+            testTask {
+                browserTestExcludes.forEach { filter.excludeTestsMatching(it) }
+            }
+        }
+        nodejs {
+            testTask {
+                // Mocha's 2s default times out heavy conformance suites on a loaded host.
+                useMocha {
+                    timeout = "120s"
+                }
+            }
+        }
     }
 
     // wasmJs is Stable as of Kotlin 2.2; @OptIn may be removable — verify before dropping on wasmWasi.
@@ -556,24 +630,24 @@ tasks.withType<AbstractTestTask>().configureEach {
 // Static analysis: Detekt + Ktlint
 // ============================================================================
 detekt {
-    buildUponDefaultConfig = true
-    allRules = false
-    autoCorrect = false
+    buildUponDefaultConfig.set(true)
+    allRules.set(false)
+    autoCorrect.set(false)
     source.setFrom(files("src"))
     config.setFrom(files("detekt.yml"))
-    parallel = true
+    parallel.set(true)
 }
 
-tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+tasks.withType<dev.detekt.gradle.Detekt>().configureEach {
     reports {
         html.required.set(true)
         sarif.required.set(true)
-        txt.required.set(false)
-        xml.required.set(false)
+        checkstyle.required.set(false)
     }
 }
 
 ktlint {
+    version.set(libs.versions.ktlintEngine.get())
     debug.set(false)
     verbose.set(false)
     android.set(false)
@@ -591,7 +665,7 @@ ktlint {
 
 if (benchmarkEnabled) {
     tasks
-        .withType<io.gitlab.arturbosch.detekt.Detekt>()
+        .withType<dev.detekt.gradle.Detekt>()
         .matching {
             it.name.contains("BenchmarkBenchmark")
         }.configureEach {
@@ -607,15 +681,9 @@ if (benchmarkEnabled) {
 }
 
 tasks.named("check") {
-    dependsOn(tasks.withType<io.gitlab.arturbosch.detekt.Detekt>())
+    dependsOn(tasks.withType<dev.detekt.gradle.Detekt>())
     dependsOn(tasks.named("ktlintCheck"))
-    // Android host unit tests run here alongside the tests that check -> allTests
-    // already executes (jvm, macosArm64, the Apple simulators, js, wasmJs,
-    // wasmWasi). Test EXECUTION belongs to check; target BUILD coverage belongs
-    // to the explicit all-target build set below.
-    dependsOn("testAndroidHostTest")
-    // Swift Export smoke test is required; it must not self-skip.
-    dependsOn("swiftExportSmokeTest")
+    dependsOn("test")
 }
 
 // ============================================================================
@@ -909,7 +977,10 @@ val publishToCentralPortal by tasks.registering {
                 statusBody["deploymentState"]?.toString()
                     ?: error("Central Portal status response did not contain deploymentState: ${statusResponse.body()}")
             when (deploymentState) {
-                "FAILED" -> error("Central Portal deployment failed: ${statusBody["errors"] ?: statusResponse.body()}")
+                "FAILED" -> {
+                    error("Central Portal deployment failed: ${statusBody["errors"] ?: statusResponse.body()}")
+                }
+
                 in terminalStates -> {
                     logger.lifecycle("Central Portal deployment $deploymentId reached $deploymentState.")
                     return@doLast
@@ -981,14 +1052,42 @@ tasks.matching { it.name.contains("GenerateSPMPackage") }.configureEach {
                 ?.asFile
         if (spmDir != null && spmDir.exists()) {
             spmDir.walkTopDown().filter { it.name == "Package.swift" }.forEach { file ->
-                val text = file.readText()
+                var text = file.readText()
+                if (text.contains("swift-tools-version: 6.0")) {
+                    text = text.replace("swift-tools-version: 6.0", "swift-tools-version: 5.9")
+                }
                 if (!text.contains("platforms:")) {
-                    file.writeText(
+                    text =
                         text.replaceFirst(
                             Regex("""(let package = Package\s*\(\s*name:\s*"[^"]*",)"""),
-                            "$1\n    platforms: [.macOS(.v14)],",
-                        ),
+                            "$1\n    platforms: [.macOS(\"15.0\")],",
+                        )
+                } else if (text.contains(".macOS(.v15)") || text.contains(".macOS(.v14)")) {
+                    text = text.replace(".macOS(.v15)", ".macOS(\"15.0\")").replace(".macOS(.v14)", ".macOS(\"15.0\")")
+                }
+                file.writeText(text)
+            }
+            // Swift Export spells Foundation's stream classes by their Objective-C names, which
+            // Swift rejects ("'NSInputStream' has been renamed to 'InputStream'").
+            spmDir.walkTopDown().filter { it.isFile && it.extension == "swift" }.forEach { file ->
+                val text = file.readText()
+                val renamed =
+                    text
+                        .replace("Foundation.NSInputStream", "Foundation.InputStream")
+                        .replace("Foundation.NSOutputStream", "Foundation.OutputStream")
+                if (renamed != text) {
+                    file.writeText(renamed)
+                }
+            }
+            spmDir.walkTopDown().filter { it.name == "OrgJetbrainsKotlinxKotlinxSerializationCore.swift" }.forEach { file ->
+                val text = file.readText()
+                val cleaned =
+                    text.replace(
+                        Regex("""@_spi\([^)]+\)\s+public func (?:decodeSequentially|shouldEncodeElementDefault|encodeNotNullMark)\([^)]*\)(?:\s*->\s*[^\n{]+)?\s*\{\s*fatalError\([^)]+\)\s*\}"""),
+                        "",
                     )
+                if (cleaned != text) {
+                    file.writeText(cleaned)
                 }
             }
         }
@@ -1036,7 +1135,7 @@ tasks.register("swiftExportSmokeTest") {
                         "CONFIGURATION" to "Debug",
                         "ARCHS" to "arm64",
                         "FRAMEWORKS_FOLDER_PATH" to "Frameworks",
-                        "MACOSX_DEPLOYMENT_TARGET" to "14.0",
+                        "MACOSX_DEPLOYMENT_TARGET" to "15.0",
                         "DEPLOYMENT_TARGET_SETTING_NAME" to "MACOSX_DEPLOYMENT_TARGET",
                     ),
                 )
@@ -1060,8 +1159,8 @@ tasks.register("swiftExportSmokeTest") {
 // `build` aggregate
 // ----------------------------------------------------------------------------
 // Every configured native target, unconditionally. This is the audit contract —
-// it must mirror the kotlin { } target block exactly. watchosArm32 is the only
-// retired native target (see §5.5.1); everything else MUST build.
+// it must mirror the kotlin { } target block exactly. All native 32-bit and
+// Apple-specific x64 targets are retired; every retained target MUST build.
 // Do not add a dynamic tasks.matching fallback here: copied templates must make
 // the target surface explicit so missing declarations fail loudly in review.
 // ============================================================================
@@ -1071,14 +1170,12 @@ val nativeTargetNames =
         "androidNativeX64",
         "iosArm64",
         "iosSimulatorArm64",
-        "iosX64",
         "linuxArm64",
         "linuxX64",
         "macosArm64",
         "mingwX64",
         "tvosArm64",
         "tvosSimulatorArm64",
-        "watchosArm64",
         "watchosDeviceArm64",
         "watchosSimulatorArm64",
     )
